@@ -43,7 +43,7 @@ CFLAGS		:=-Os -D F_CPU=$(HZ)
 CFLAGS		+=-g -mmcu=$(MCU) -Wall -Wstrict-prototypes
 HEADERS         := $(wildcard *.h)
 #SOURCES         := $(wildcard *.c)
-SOURCES        := main.c timer0.c i2c.c uart_printf.c ssd1306.c analogIn.c
+SOURCES        := main.c timer0.c i2c.c uart_printf.c ssd1306.c analogIn.c PID.c
 OBJECTS        := $(patsubst %.c,%.o,$(SOURCES))
 
 all: $(FIRMWARE).hex

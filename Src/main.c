@@ -42,7 +42,7 @@ uint8_t dbg_var;
 static char TempString[16];  // Dangerous !
 
 static volatile uint16_t zc_count;
-static volatile uint16_t zc_period;
+static volatile uint16_t zc_width;
 
 
 #define LED1_OFF()      (PORTB &= ~(1 << PINB5))
@@ -67,15 +67,17 @@ ISR(PCINT0_vect)
     if( PINB & (1 << PB0) ) {
         zc_count++;
 
-        // Check period with timer 1 counter
-        zc_period = TCNT1;
-
         // Reset timer 1 counter
         TCNT1 = 0;
 
         // Make sure Gate is off
         PORTB &= ~(1<<TRIAC_GATE);
     }
+    else{
+        // Check width with timer 1 counter
+        zc_width = TCNT1;
+    }
+
 }
 
 ISR(TIMER1_COMPA_vect)
@@ -249,7 +251,7 @@ int main(void)
             LED1_TOGGLE();
 
             printf("VCTRL = %u\n", valVCtrl() );
-            printf("zc_count = %u - %u\n", zc_count, zc_period );
+            printf("zc_count = %u - %u\n", zc_count, zc_width );
             printf("TIMSK1 = %02X\n", TIMSK1 );
 
         }
