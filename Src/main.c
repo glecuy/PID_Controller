@@ -21,7 +21,7 @@
 #include "ssd1306.h"
 #include "analogIn.h"
 
-
+#include "PID.h"
 
 // On boad LED (Pro Mini board)
 #define LED1        PINB5
@@ -55,6 +55,15 @@ static volatile uint16_t zc_width;
 #define LED2_TOGGLE()   { if ( PORTC & (1 << PINC2) ) LED2_OFF(); else LED2_ON(); }
 
 
+/* Initialise PID controller
+ * Most values come from PID_Test.c */
+static PIDController PID_Controller = {
+                .Kp=2.0f, .Ki=0.5f, .Kd=0.25f,
+                .tau=0.02f,
+                .limMin=-1.0f, .limMax=+1.0f,
+                .limMinInt=-5.0f, .limMaxInt=+5.0f,
+                .T=(TIMER_TICK_MS/1000.0f)
+};
 
 
 /*
@@ -192,6 +201,8 @@ void timer1Setup(void){
 
 uint8_t db_on;
 
+
+
 int main(void)
 {
     unsigned long TxTick=0;
@@ -212,10 +223,11 @@ int main(void)
 
     ssd1306_init();
 
-
     zero_crossing_init();
 
     timer1Setup();
+
+    PIDController_Init(&PID_Controller);
 
     //  Enable global interrupts
     sei();
