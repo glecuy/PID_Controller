@@ -78,7 +78,7 @@ static volatile uint16_t _meas_count;
 //};
 
 static PIDController PID_Controller = {
-        .Kp=0.1f,.Ki=0.5f,.Kd=0.02f,
+        .Kp=0.4f,.Ki=1.0f,.Kd=0.02f,
         .tau=0.005f,
         .limMin=0.0f, .limMax=+1.0f,
         .limMinInt=0.0f, .limMaxInt=+5.0f,
@@ -287,8 +287,8 @@ uint32_t GetRpmOrderInput(void){
 
 #define MAX_RPM     6000.
 #define MIN_RPM     800
-#define RPM_RAMP_UP 100
-#define SPIN_UP     20
+#define RPM_RAMP_UP 200
+#define SPIN_UP     10
 
 int main(void)
 {
@@ -383,7 +383,7 @@ int main(void)
                 RPM = 0;
             }
 
-            if ( ( RPM == 0 ) && ( SpinUpCnt > SPIN_UP ) ){
+            if ( ( RPM == 0 ) && ( SpinUpCnt >= SPIN_UP ) ){
                 RampUpRPM = MIN_RPM;
                 PIDController_Init(&PID_Controller);
             }
