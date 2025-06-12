@@ -16,12 +16,17 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 
 
-#define SIM_SAMPLE_TIME_S   0.025f  // Sec
-#define ELEC_TIME_CONSTANT  0.2f    // Sec
-#define MECA_TIME_CONSTANT  1.0f    // Sec
+// Motor
+// R=7 Ohms, L=125mH
+
+//#define SIM_SAMPLE_TIME_S   0.025f  // Sec
+#define SIM_SAMPLE_TIME_S   0.1f  // Sec
+#define ELEC_TIME_CONSTANT  0.018f    // Sec
+#define MECA_TIME_CONSTANT  0.3f    // Sec
 #define EQU_SERIAL_RESISTOR 10      // Ohms
 #define MAX_RPM             3000    // rpm
 
@@ -105,47 +110,6 @@ double computeEFM( double rpm ){
 
 
 
-int mainMot() {
-    //int t=0;
-    //int signal_length = size_of_signal() / sizeof(double);
-    double signal;
-    double v_int;
-    double rpm;
-    double efm;
-    double load_power;
-
-    //printf("Time (s)\tSystem Output\tControllerOutput\r\n");
-    efm = 0.0f;
-    signal = 0.0f;
-    for (double t = 0.0f; t <= SIMULATION_TIME_MAX; t += SIM_SAMPLE_TIME_S) {
-
-#if 0
-        if ( t > SIMULATION_TIME_MAX/5 )
-            signal = 1.0f;
-        else
-            signal = 0.0f;
-#endif
-
-        double step = 1.0f / ((SIMULATION_TIME_MAX/2)/SIM_SAMPLE_TIME_S);
-        if ( t < SIMULATION_TIME_MAX/2 ){
-            signal += step;
-        }
-
-        v_int = signal - efm;
-        rpm = computeRPM(v_int);
-        rpm = Elec_LPF(rpm);
-        rpm = Meca_LPF(rpm);
-        efm = computeEFM(rpm);
-
-        load_power = TorqueValue * (rpm / 60)*(2*PI);
-        Motor_rpm = rpm;
-
-        //printf("Entrée: %.6f, Sortie filtrée: %.6f\n", input_signal[i], filtered_output);
-        printf("%.3f %.6f %.6f %.6f %.6f\n", t, signal, rpm, efm, load_power);
-    }
-
-    return 0;
-}
 
 
 double MotorSystemUpdate( double signal ){
@@ -160,7 +124,10 @@ double MotorSystemUpdate( double signal ){
     rpm = Meca_LPF(rpm);
     efm = computeEFM(rpm);
 
-    Motor_rpm = rpm;
+    if ( TorqueValue > 100 )
+        Motor_rpm = 0;
+    else
+        Motor_rpm = rpm;
 
     return rpm/600;
 }
@@ -169,18 +136,6 @@ double MotorSystemUpdate( double signal ){
 
 #include "PID.h"
 
-/* Controller parameters */
-#define PID_KP  2.0f
-#define PID_KI  0.5f
-#define PID_KD  0.25f
-
-#define PID_TAU 0.02f
-
-#define PID_LIM_MIN -1.0f
-#define PID_LIM_MAX +1.0f
-
-#define PID_LIM_MIN_INT -5.0f
-#define PID_LIM_MAX_INT  5.0f
 
 
 float TestSystem_Update(float inp) {
@@ -193,15 +148,59 @@ float TestSystem_Update(float inp) {
     return output;
 }
 
+
+void print_uint_as_fixed_point( int digits, int pos, uint32_t n ){
+    char text[32];
+    int i;
+    uint32_t num = n;
+    int d;
+    char *ptr;
+
+    for ( i=digits-1 ; i>=0 ; i-- ){
+        d = num %10;
+        num /= 10;
+        text[i] = '0' + d;
+        if ( i==pos ){
+            i--;
+            text[i] = '.';
+        }
+    }
+    text[digits]=' ';
+    text[digits+1]='\0';
+    ptr = text;
+    while ( *ptr ){
+        putchar( *ptr );
+        ptr++;
+    }
+
+}
+
+/*
+ * Replace printf %f for AVR microcontroleur
+ *  output format used for python plot tool
+ */
+void DoAvrPrint( uint32_t t, float setpoint, float measurement, float out ){
+
+    print_uint_as_fixed_point( 6, 3, t );
+    print_uint_as_fixed_point( 6, 2, (uint32_t)(setpoint*10001) );
+    print_uint_as_fixed_point( 6, 2, (uint32_t)(measurement*10001) );
+    print_uint_as_fixed_point( 8, 2, (uint32_t)(out*1000001) );
+
+    putchar( '\n');
+}
+
+
 int main()
 {
     /* Initialise PID controller */
-    PIDController pid = { .Kp=2.0f, .Ki=0.5f, .Kd=0.25f,
-                          .tau=0.02f,
-                          .limMin=-1.0f, .limMax=+1.0f,
-                          .limMinInt=-5.0f, .limMaxInt=+5.0f,
-                          .T=SIM_SAMPLE_TIME_S
-                      };
+    PIDController pid = {
+        //.Kp=2.0f, .Ki=0.5f, .Kd=0.25f,
+        .Kp=0.2f,.Ki=0.5f,.Kd=0.05f,
+          .tau=0.005f,
+          .limMin=-0.0f, .limMax=+1.0f,
+          .limMinInt=-0.0f, .limMaxInt=+1.0f,
+          .T=SIM_SAMPLE_TIME_S
+      };
 
     PIDController_Init(&pid);
 
@@ -231,7 +230,8 @@ int main()
         PIDController_Update(&pid, setpoint, measurement);
 
         //printf("%f\t%f\t%f\r\n", t, measurement, pid.out);
-        printf("%.3f %.6f %.6f %.6f\n", t, setpoint, measurement, pid.out);
+        //printf("%.3f %.6f %.6f %.6f\n", t, setpoint, measurement, pid.out);
+        DoAvrPrint( t*1000, setpoint, measurement, pid.out );
 
     }
 

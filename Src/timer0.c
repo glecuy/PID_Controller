@@ -13,11 +13,11 @@
 #include <avr/eeprom.h>
 #include <avr/sleep.h>
 
-
+#include "debug.h"
 
 volatile unsigned long TimerTicks;
+volatile unsigned long Timer100msTicks;
 
-volatile uint8_t led_on;
 
 int timer0_init(void)
 {
@@ -32,6 +32,7 @@ int timer0_init(void)
     TCCR0B |= ((1 << CS02) | (0 << CS01) | (1 << CS00)); // 101 clkIO/1024 (From prescaler)
 
     TimerTicks=0;
+    Timer100msTicks=0;
 
     // Enable Compare A Match Interrupt
     TIMSK0  |= (1 << OCIE0A );
@@ -42,16 +43,11 @@ int timer0_init(void)
 ISR(TIMER0_COMPA_vect)
 {
     TimerTicks++;
-#if 0
-    if ( led_on ){
-        led_on = 0;
-        PORTC &= ~(1 << PINC2);
+    if ( ( TimerTicks & 0x03 ) == 0){
+        Timer100msTicks++;
+        //DBGPIN_TOGGLE();
     }
-    else{
-        led_on=1;
-        PORTC |= (1 << PINC2);
-    }
-#endif
+
 }
 
 void UsSleep( unsigned long Delay )
@@ -82,6 +78,17 @@ unsigned long timer0_GetTicks(void)
 
     TIMSK0  &= ~(1 << OCIE0A );
     Ret = TimerTicks;
+    TIMSK0  |= (1 << OCIE0A );
+
+    return Ret;
+}
+
+unsigned long timer0_Get100msTicks(void)
+{
+    unsigned long Ret;
+
+    TIMSK0  &= ~(1 << OCIE0A );
+    Ret = Timer100msTicks;
     TIMSK0  |= (1 << OCIE0A );
 
     return Ret;
